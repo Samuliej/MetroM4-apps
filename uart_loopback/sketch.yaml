@@ -1,0 +1,2 @@
+default_fqbn: adafruit:samd:adafruit_metro_m4
+default_port: /dev/ttyACM0

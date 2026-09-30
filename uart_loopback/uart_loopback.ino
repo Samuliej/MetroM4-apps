@@ -1,5 +1,4 @@
 #include <cstdint>
-#include <cassert>
 
 constexpr bool USE_GCLK5 = true; // This can be flipped to change between GCLK0 and GCLK5
 // We're using a 12MHz clock, so we divide the 120MHz by 10.
@@ -13,7 +12,7 @@ constexpr uint8_t GCLK_SERCOM1_CORE = 8;  // Page 155, PCHCTRLm mapping SERCOM1 
 constexpr uint32_t SERCOM1_CLOCK_ENABLE_BIT = (0x1 << 13);
 
 // Calculate the Baud rate
-// We want to use GCLK5 for practise and change the frequency.
+// We want to use GCLK5 for practice and change the frequency.
 // Since no dynamic values are needed in the calculation, we calculate the baud rate already in compile time
 constexpr uint16_t BAUD_RATE = (uint16_t)(REGISTER_SIZE * (1.0f - 16.0f * (F_BAUD / F_REF))); // Page 853
 
@@ -122,33 +121,22 @@ void configurePins() {
 
 
 void initUsart() {
-  // SERCOM1->USART.CTRLA.bit.MODE = 0x1;
-  // SERCOM1->USART.CTRLA.bit.TXPO = 0x0; 
-  // SERCOM1->USART.CTRLA.bit.RXPO = 0x1; 
-
-
-  SERCOM1->USART.CTRLA.reg |= (0x1 << 2)   // Set Internal Asynchronous mode (0x1) to use the internal clock.
+  // Use '=' instead of '|=', since we want to assign zero bits here
+  SERCOM1->USART.CTRLA.reg = (0x1 << 2)    // Set Internal Asynchronous mode (0x1) to use the internal clock. (SERCOM1->USART.CTRLA.bit.MODE = 0x1)
                                            // This opts out of the shared (synchronous) clock, allowing the USART 
                                            // to run on its own frequency without being in sync with an external signal. Page 852
 
-                            // Set the corresponding bits for TXPO (transmit) and RXPO (receive) bits in the USART CTRLA. Page 879
-                            | (0x0 << 16)  // Output transmit, sets the PA16 (PAD[0]) as TXPO
-                            | (0x1 << 20)  // Input receive, sets the PA17 (PAD[1]) as RXPO
+                          // Set the corresponding bits for TXPO (transmit) and RXPO (receive) bits in the USART CTRLA. Page 879
+                          | (0x0 << 16)  // Output transmit, sets the PA16 (PAD[0]) as TXPO (SERCOM1->USART.CTRLA.bit.TXPO = 0x0)
+                          | (0x1 << 20)  // Input receive, sets the PA17 (PAD[1]) as RXPO   (SERCOM1->USART.CTRLA.bit.RXPO = 0x1)
 
-                            | (0x1 << 30); // Set data order Least Significant Bit first. Page 878
-                                           // Could not find the CMSIS structs for these.
-  
+                          | (0x1 << 30); // Set data order Least Significant Bit first. Page 878 (SERCOM1->USART.CTRLA.bit.DORD = 1)
+                                        // Could not find the CMSIS structs for these.
 
-  
-  // SERCOM1->USART.CTRLA.bit.DORD = 1;
+  SERCOM1->USART.CTRLB.reg  = (0x1 << 17) // Enable the receiver / will be enabled when the USART is enabled. page 882 (SERCOM1->USART.CTRLB.bit.RXEN = 1)
+                            | (0x1 << 16) // Enable the transmitter / will be enabled when the USART is enabled. Page 883 (SERCOM1->USART.CTRLB.bit.TXEN = 1)
+                            | (0x0 << 0); // Set the character size to 8bits. Page 884 (SERCOM1->USART.CTRLB.bit.CHSIZE = 0x0)
 
-  // Enable the receiver / will be enabled when the USART is enabled. page 882
-  SERCOM1->USART.CTRLB.bit.RXEN = 1;
-
-  // Enable the transmitter / will be enabled when the USART is enabled. Page 883
-  SERCOM1->USART.CTRLB.bit.TXEN = 1;
-  
-  SERCOM1->USART.CTRLB.bit.CHSIZE = 0x0; // Set the character size to 8bits. Page 884
   SERCOM1->USART.BAUD.reg = BAUD_RATE;   // Write the calculated baud rate to the register. Page 887
 
   // Finally, Enable USART in the SERCOM
